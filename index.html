@@ -1,0 +1,239 @@
+<!doctype html><html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estudio de miniaturas · MoringosTV</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a1020;--card:#121a2e;--line:#243050;--tx:#e9edf7;--mut:#8f9bb8;--ac:#ffd400}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 Inter,system-ui,sans-serif;display:grid;grid-template-columns:350px 1fr;min-height:100vh}
+aside{background:var(--card);border-right:1px solid var(--line);padding:18px;overflow:auto;max-height:100vh;position:sticky;top:0}
+main{padding:20px;min-width:0}
+h1{font:26px/1 Anton,sans-serif;margin:0 0 4px;letter-spacing:.5px}
+.sub{color:var(--mut);margin:0 0 8px}
+h2{font:600 13px Inter;margin:20px 0 2px;color:var(--ac)}
+label{display:block;margin:10px 0 4px;color:var(--mut);font-size:12px}
+label.ck{display:flex;gap:8px;align-items:center;color:var(--tx);font-size:13px}
+input,select,button{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font:inherit}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+input[type=color]{height:36px;padding:2px}
+input[type=range]{padding:0}
+input[type=checkbox]{width:auto;padding:0}
+button{background:var(--ac);color:#000;font-weight:600;cursor:pointer;border:0;margin-top:10px}
+button.s{background:transparent;color:var(--tx);border:1px solid var(--line)}
+canvas{width:100%;height:auto;border-radius:8px;background:#000;display:block}
+#cv{touch-action:none}
+.row{display:flex;gap:8px}.row>*{flex:1}
+#st{margin:12px 0;min-height:20px;color:var(--mut)}
+#wc{font-size:12px;color:var(--mut)}#wc.warn{color:#ffb000}
+.small{max-width:420px;margin-top:16px}.small canvas{border:1px solid var(--line)}
+.small p{margin:4px 0 0;color:var(--mut);font-size:12px}
+@media(max-width:900px){body{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0}}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Estudio de miniaturas</h1>
+  <p class="sub">Sin IA y sin servidor. Todo pasa en tu navegador.</p>
+
+
+  <h2>Texto</h2>
+  <label for="game">Juego (etiqueta)</label>
+  <select id="game"><option>No Man's Sky</option><option>Crimson Desert</option><option>Dune: Awakening</option><option value="otro">Otro…</option></select>
+  <input id="gameOther" placeholder="Nombre del juego" style="margin-top:6px;display:none">
+  <label for="l1">Línea 1 (blanco)</label><input id="l1" value="UPDATE 7.06">
+  <label for="l2">Línea 2 (amarillo)</label><input id="l2" value="¿QUÉ CAMBIÓ?">
+  <label for="l3">Línea 3 (blanco, opcional)</label><input id="l3" value="">
+  <div id="wc"></div>
+
+
+  <h2>Fondo</h2>
+  <label for="bgfile">Sube tu fondo (captura, render, lo que quieras)</label>
+  <input id="bgfile" type="file" accept="image/*">
+  <button id="btnFondos" type="button" class="s">…o genera un fondo espacial aleatorio →</button>
+  <label for="dark">Oscurecer la zona del texto</label><input id="dark" type="range" min="0" max="100" value="80">
+  <label for="acc">Color de acento (marco y brillo)</label><input id="acc" type="color" value="#00e5ff">
+
+
+  <h2>Tu foto</h2>
+  <label for="photo">PNG recortado (con o sin fondo blanco). Se guarda en este navegador.</label>
+  <input id="photo" type="file" accept="image/*">
+  <label class="ck"><input id="rmwhite" type="checkbox" checked> Quitar fondo blanco si lo tiene</label>
+  <label class="ck"><input id="outline" type="checkbox" checked> Borde blanco alrededor</label>
+  <label for="size">Tamaño</label><input id="size" type="range" min="50" max="110" value="92">
+  <label for="shift">Posición horizontal</label><input id="shift" type="range" min="-300" max="200" value="0">
+
+
+  <h2>Elementos flotantes</h2>
+  <label for="stk">Sube 1 a 3 imágenes (nave, icono, flecha). Arrástralas en la vista previa.</label>
+  <input id="stk" type="file" accept="image/*" multiple>
+  <label for="ssize">Tamaño de los elementos</label><input id="ssize" type="range" min="10" max="60" value="26">
+  <button id="btnClr" type="button" class="s">Quitar elementos</button>
+
+
+  <button id="btnDl" type="button">Descargar PNG 1920×1080</button>
+</aside>
+
+
+<main>
+  <canvas id="cv" aria-label="Vista previa de la miniatura"></canvas>
+  <div id="st" role="status"></div>
+  <div class="small">
+    <canvas id="mini" width="336" height="189" aria-label="Vista en tamaño móvil"></canvas>
+    <p>Así se ve en el feed del móvil. Si el texto no se lee aquí, hay que simplificar.</p>
+  </div>
+</main>
+
+
+<script>
+const $=id=>document.getElementById(id),W=1920,H=1080,cv=$('cv'),ctx=cv.getContext('2d');
+cv.width=W;cv.height=H;
+const ACC={"No Man's Sky":"#00e5ff","Crimson Desert":"#ff4a1c","Dune: Awakening":"#ffb000"};
+const ls={get:k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}},set:(k,v)=>{try{localStorage.setItem(k,v);return true}catch(e){return false}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+const st=m=>$('st').textContent=m;
+const gameName=()=>$('game').value==='otro'?($('gameOther').value||'JUEGO'):$('game').value;
+const loadImg=f=>new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=URL.createObjectURL(f)});
+let photoImg=null,photo=null,bg=null,stickers=[];
+
+
+function processPhoto(img,rm){
+  const s=Math.min(1,1400/img.height),w=Math.round(img.width*s),h=Math.round(img.height*s);
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,w,h);
+  const d=x.getImageData(0,0,w,h),p=d.data;
+  if(rm&&p[3]===255){
+    const seen=new Uint8Array(w*h),stk=[];
+    const push=i=>{if(!seen[i]&&p[i*4]>232&&p[i*4+1]>232&&p[i*4+2]>232){seen[i]=1;stk.push(i)}};
+    for(let a=0;a<w;a++){push(a);push((h-1)*w+a)}
+    for(let b=0;b<h;b++){push(b*w);push(b*w+w-1)}
+    while(stk.length){const i=stk.pop(),px=i%w;p[i*4+3]=0;
+      if(px>0)push(i-1);if(px<w-1)push(i+1);if(i>=w)push(i-w);if(i<w*(h-1))push(i+w)}
+    x.putImageData(d,0,0);
+  }
+  let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++)for(let q=0;q<w;q++)if(p[(y*w+q)*4+3]>10){if(q<x0)x0=q;if(q>x1)x1=q;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<0)return c;
+  const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;
+  o.getContext('2d').drawImage(c,x0,y0,o.width,o.height,0,0,o.width,o.height);return o;
+}
+function savePhoto(c){
+  const s=Math.min(1,900/c.height),t=document.createElement('canvas');t.width=Math.round(c.width*s);t.height=Math.round(c.height*s);
+  t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+  if(!ls.set('mtv_photo',t.toDataURL('image/png')))st('No se pudo guardar la foto en el navegador; tendrás que subirla la próxima vez.');
+}
+const fit=(t,maxW,cap)=>{ctx.font=cap+'px Anton';const w=ctx.measureText(t).width;return w>maxW?cap*maxW/w:cap};
+
+
+async function draw(){
+  await document.fonts.load('100px Anton');
+  const acc=$('acc').value,game=gameName().toUpperCase();
+  ctx.clearRect(0,0,W,H);
+  if(bg){const r=Math.max(W/bg.width,H/bg.height),w=bg.width*r,h=bg.height*r;ctx.drawImage(bg,(W-w)/2,(H-h)/2,w,h)}
+  else{const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#05070f');g.addColorStop(1,'#0b1b2e');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+  let g=ctx.createLinearGradient(0,0,W*.65,0);g.addColorStop(0,'rgba(0,0,0,'+$('dark').value/100+')');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  g=ctx.createRadialGradient(W/2,H/2,H*.4,W/2,H/2,W*.75);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.65)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+
+  let px=0,py=0,pw=0,ph=0;
+  if(photo){
+    ph=H*$('size').value/100;const s=ph/photo.height;pw=photo.width*s;px=W-pw-40+Number($('shift').value);py=H-ph;
+    const gl=ctx.createRadialGradient(px+pw/2,py+ph*.45,50,px+pw/2,py+ph*.45,ph*.8);
+    gl.addColorStop(0,acc+'99');gl.addColorStop(1,acc+'00');ctx.fillStyle=gl;ctx.fillRect(0,0,W,H);
+  }
+  stickers.forEach(k=>{
+    const h=H*$('ssize').value/100,s=h/k.img.height,w=k.img.width*s;
+    k.w=w;k.h=h;ctx.save();ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=24;ctx.drawImage(k.img,k.x,k.y,w,h);ctx.restore();
+  });
+  if(photo){
+    if($('outline').checked){
+      const t=document.createElement('canvas');t.width=photo.width;t.height=photo.height;
+      const tx=t.getContext('2d');tx.drawImage(photo,0,0);tx.globalCompositeOperation='source-in';tx.fillStyle='#fff';tx.fillRect(0,0,t.width,t.height);
+      for(let a=0;a<24;a++){const r=a/24*Math.PI*2;ctx.drawImage(t,px+Math.cos(r)*9,py+Math.sin(r)*9,pw,ph)}
+    }
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=30;ctx.drawImage(photo,px,py,pw,ph);ctx.restore();
+  }
+  ctx.strokeStyle=acc;ctx.lineWidth=14;ctx.strokeRect(7,7,W-14,H-14);
+  ctx.font='64px Anton';ctx.textBaseline='middle';
+  const lw=ctx.measureText(game).width+70;
+  ctx.fillStyle='#000';ctx.beginPath();ctx.roundRect(44,44,lw,100,18);ctx.fill();
+  ctx.fillStyle='#fff';ctx.fillText(game,79,96);
+  const L=[[$('l1').value.toUpperCase(),'#fff'],[$('l2').value.toUpperCase(),'#ffd400'],[$('l3').value.toUpperCase(),'#fff']].filter(l=>l[0].trim());
+  const sz=L.length?Math.min(240,...L.map(l=>fit(l[0],1020,240))):0;
+  const lh=sz*1.04,top=190+(H-190-60-lh*L.length)/2;
+  ctx.textBaseline='top';ctx.lineJoin='round';ctx.font=sz+'px Anton';
+  L.forEach((l,i)=>{const yy=top+i*lh;
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=20;ctx.shadowOffsetY=8;ctx.lineWidth=sz*.13;ctx.strokeStyle='#000';ctx.strokeText(l[0],70,yy);ctx.restore();
+    ctx.fillStyle=l[1];ctx.fillText(l[0],70,yy)});
+  const n=L.reduce((a,l)=>a+l[0].trim().split(/\s+/).length,0);
+  $('wc').textContent=n+' palabras'+(n>4?' · más de 4 se lee peor en el móvil':'');$('wc').className=n>4?'warn':'';
+  $('mini').getContext('2d').drawImage(cv,0,0,336,189);
+}
+
+
+$('btnFondos').onclick=()=>{location.href='generador-fondos.html'};
+
+const KEEP=['game','gameOther','l1','l2','l3','acc','dark','size','shift','ssize'];
+try{const s=JSON.parse(ls.get('mtv_form')||'{}');KEEP.forEach(k=>{if(s[k]!==undefined)$(k).value=s[k]});}catch(e){}
+$('gameOther').style.display=$('game').value==='otro'?'block':'none';
+document.querySelectorAll('aside input,aside select').forEach(e=>{
+  if(e.type==='file')return;
+  e.addEventListener('input',()=>{
+    if(e.id==='game'){$('gameOther').style.display=e.value==='otro'?'block':'none';if(ACC[e.value])$('acc').value=ACC[e.value]}
+    if(e.id==='rmwhite'&&photoImg){photo=processPhoto(photoImg,e.checked);savePhoto(photo)}
+    ls.set('mtv_form',JSON.stringify(Object.fromEntries(KEEP.map(k=>[k,$(k).value]))));
+    draw();
+  });
+});
+
+
+$('photo').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  photoImg=await loadImg(f);photo=processPhoto(photoImg,$('rmwhite').checked);savePhoto(photo);draw();st('Foto cargada y guardada en este navegador.');
+});
+$('bgfile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;bg=await loadImg(f);draw();st('Fondo cargado.');
+});
+$('stk').addEventListener('change',async e=>{
+  const fs=[...e.target.files].slice(0,3);
+  for(const [i,f] of fs.entries()){
+    const c=processPhoto(await loadImg(f),true);
+    stickers.push({img:c,x:W*.42+i*180,y:H*.15+i*220,w:0,h:0});
+  }
+  draw();st('Arrastra los elementos en la vista previa.');
+});
+$('btnClr').onclick=()=>{stickers=[];draw()};
+$('btnDl').onclick=()=>cv.toBlob(b=>{
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='miniatura-'+gameName().replace(/\W+/g,'-').toLowerCase()+'.png';a.click();
+},'image/png');
+
+
+let drag=null;
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]};
+cv.addEventListener('pointerdown',e=>{
+  const[x,y]=pos(e);
+  for(let i=stickers.length-1;i>=0;i--){const k=stickers[i];
+    if(x>=k.x&&x<=k.x+k.w&&y>=k.y&&y<=k.y+k.h){drag={k,dx:x-k.x,dy:y-k.y};cv.setPointerCapture(e.pointerId);
+      stickers.push(stickers.splice(i,1)[0]);break}}
+});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const[x,y]=pos(e);drag.k.x=x-drag.dx;drag.k.y=y-drag.dy;draw()});
+cv.addEventListener('pointerup',()=>drag=null);
+
+
+const saved=ls.get('mtv_photo');
+if(saved){const i=new Image();i.onload=()=>{photo=i;draw()};i.src=saved}
+
+const fondoGen=ls.get('fondoGenerado');
+if(fondoGen){
+  ls.del('fondoGenerado');
+  const i=new Image();
+  i.onload=()=>{bg=i;draw();st('Fondo espacial cargado desde el generador de fondos.')};
+  i.src=fondoGen;
+}
+draw();
+</script>
+</body>
+</html>
