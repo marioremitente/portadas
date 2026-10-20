@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biblioteca de elementos · MoringosTV</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a1020;--card:#121a2e;--line:#243050;--tx:#e9edf7;--mut:#8f9bb8;--ac:#ffd400}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 Inter,system-ui,sans-serif;min-height:100vh}
+main{max-width:1500px;margin:0 auto;padding:22px 20px 40px}
+h1{font:30px/1 Anton,Impact,sans-serif;margin:0 0 4px;letter-spacing:.5px;text-transform:uppercase}
+.sub{color:var(--mut);margin:0 0 16px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.bar label{display:block;color:var(--mut);font-size:12px;margin-bottom:4px}
+.bar .f{flex:1 1 180px;min-width:150px}
+.bar .f.b{flex:0 0 auto}
+input,select,button{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--tx);font:inherit}
+input[type=range]{padding:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+button.p{background:var(--ac);color:#000;font-weight:600;cursor:pointer;border:0;padding:9px 16px;white-space:nowrap}
+#info{margin:12px 2px 0;color:var(--mut);min-height:20px}
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:min(92vw,900px);width:100%}
+dialog::backdrop{background:rgba(0,0,0,.75)}
+.pv{display:flex;align-items:center;justify-content:center;max-height:68vh;border-radius:8px;overflow:hidden;
+ background-color:#0b1120;background-image:linear-gradient(45deg,#17213a 25%,transparent 25%,transparent 75%,#17213a 75%),linear-gradient(45deg,#17213a 25%,transparent 25%,transparent 75%,#17213a 75%);background-size:20px 20px;background-position:0 0,10px 10px}
+.pv img{max-width:100%;max-height:68vh;display:block;object-fit:contain}
+.pi{margin:12px 0 0;word-break:break-all}.pi small{color:var(--mut);display:block}
+.acc{display:flex;gap:10px;margin-top:12px}
+.acc a,.acc button{flex:1;text-align:center;padding:9px 12px;border-radius:6px;font-weight:600;text-decoration:none;cursor:pointer}
+.acc a{background:var(--ac);color:#000;border:0}
+.acc button{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.nota{margin-top:26px;color:var(--mut);font-size:13px;max-width:760px}
+.nota a{color:var(--ac)}
+</style>
+</head>
+<body>
+<script src="nav.js"></script>
+<main>
+  <h1>Biblioteca de elementos</h1>
+  <p class="sub">Explora tu carpeta ELEMENTOS-NMS: busca, previsualiza y descarga.</p>
+
+  <div class="bar">
+    <div class="f b"><button id="pick" class="p" type="button">Elegir carpeta ELEMENTOS-NMS…</button></div>
+    <div class="f"><label for="q">Buscar</label><input id="q" type="search" placeholder="nombre del archivo…"></div>
+    <div class="f"><label for="fol">Subcarpeta</label><select id="fol"><option value="">Todas las subcarpetas</option></select></div>
+    <div class="f"><label for="tam">Tamaño de miniaturas</label><input id="tam" type="range" min="90" max="300" value="150"></div>
+  </div>
+  <div id="info" role="status"></div>
+  <div id="grid" class="el-grid"></div>
+
+  <p class="nota">El navegador solo puede leer la carpeta que elijas con el botón, así que hay que elegirla cada vez que abres una página.
+  Para usar un elemento en una portada, elige la misma carpeta en el panel <b>Biblioteca</b> del <a href="miniaturas.html">Estudio de miniaturas</a>.</p>
+</main>
+
+<dialog id="dlg" aria-label="Vista previa del elemento">
+  <div class="pv"><img id="pvImg" alt=""></div>
+  <p class="pi"><b id="pvName"></b><small id="pvMeta"></small></p>
+  <div class="acc"><a id="pvDl" href="#" download>Descargar</a><button id="pvClose" type="button">Cerrar</button></div>
+</dialog>
+
+<script src="elementos-lib.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+function render(){
+  const list=MTV_LIB.filter($('q').value,$('fol').value);
+  MTV_LIB.renderGrid($('grid'),list,abrir);
+  if(MTV_LIB.items.length)$('info').textContent=list.length+' de '+MTV_LIB.items.length+' elementos · carpeta «'+MTV_LIB.carpeta+'»';
+}
+function abrir(it){
+  $('pvImg').src=it.url;$('pvImg').alt=it.name;
+  $('pvName').textContent=it.name;
+  $('pvMeta').textContent=(it.folder?it.folder+' · ':'')+(it.file.size/1024).toFixed(0)+' KB';
+  $('pvImg').onload=()=>{$('pvMeta').textContent=(it.folder?it.folder+' · ':'')+$('pvImg').naturalWidth+'×'+$('pvImg').naturalHeight+' px · '+(it.file.size/1024).toFixed(0)+' KB'};
+  $('pvDl').href=it.url;$('pvDl').download=it.name;
+  $('dlg').showModal();
+}
+$('pick').onclick=async()=>{
+  const r=await MTV_LIB.pick();
+  if(!r)return;
+  if(!r.length){$('info').textContent='No encontré imágenes (png, jpg, webp, gif, avif) en esa carpeta.';MTV_LIB.renderGrid($('grid'),[],null);return}
+  MTV_LIB.fillFolders($('fol'));render();
+};
+$('q').addEventListener('input',render);
+$('fol').addEventListener('input',render);
+$('tam').addEventListener('input',e=>$('grid').style.setProperty('--el-w',e.target.value+'px'));
+$('pvClose').onclick=()=>$('dlg').close();
+$('dlg').addEventListener('click',e=>{if(e.target===$('dlg'))$('dlg').close()});
+render();
+</script>
+</body>
+</html>
